@@ -54,6 +54,7 @@ impl App {
             warn!("Block with id: {} has invalid hash", block.id);
             return false
         }
+        info!("Block was added successfull!");
 
         true
     }
@@ -67,6 +68,38 @@ pub struct Block {
     pub timestamp: i64,
     pub data: String,
     pub nonce: u64,
+}
+
+impl Block {
+    fn new (id: u64, prev_hash: String, data: String) -> Self {
+        let now = Utc::now();
+        let (nonce, hash) = mine_block(id, now.timestamp(), &prev_hash, &data);
+        Block {
+            id, hash, prev_hash, timestamp: now.timestamp(), data, nonce
+        }
+    }
+}
+
+fn mine_block (id: u64, timestamp: i64, prev_hash: &str, data: &str) -> (u64, String) {
+    info!("Mining new block...");
+    let mut nonce = 0;
+
+    loop {
+        if nonce % 100_000 == 0 {
+            info!("Nonce is: {}", nonce);
+        }
+
+        let hash = calc_hash(id, timestamp, prev_hash, data, nonce);
+        let bin_hash = hash_to_binary_string(&hash);
+
+        if bin_hash.starts_with(DIFFICULTY_PREFIX) {
+            info!("Mined! Hash is: {}, Binary hash is: {}, Nonce is: {}", hash, bin_hash, nonce);
+            return (nonce, hash)
+        }
+
+        nonce += 1;
+
+    }
 }
 
 fn hash_to_binary_string (hash: &String) -> String {
@@ -95,6 +128,7 @@ fn calc_hash (id: u64, timestamp: i64, prev_hash: &str, data: &str, nonce: u64) 
     hex::encode(hasher.finalize().as_slice().to_owned())
 }
 
+
 fn main() {
 
     TermLogger::init(LevelFilter::Trace, Config::default(), TerminalMode::Stdout);
@@ -102,16 +136,18 @@ fn main() {
     let mut blockchain = App::new();
     blockchain.genesis_block();
 
-    let fake_block = Block {
-        id: 1,
-        hash: calc_hash(1, 2, &blockchain.blocks[0].hash, "Data some", 1),
-        prev_hash: blockchain.blocks[0].hash.clone(),
-        timestamp: 12,
-        data: "DAta".to_string(),
-        nonce: 2,
-    };
+    // let fake_block = Block {
+    //     id: 1,
+    //     hash: calc_hash(1, 2, &blockchain.blocks[0].hash, "Data some", 1),
+    //     prev_hash: blockchain.blocks[0].hash.clone(),
+    //     timestamp: 12,
+    //     data: "DAta".to_string(),
+    //     nonce: 2,
+    // };
 
-    blockchain.try_add_block(fake_block);
+    let block = Block::new(1, blockchain.blocks[0].hash.clone(), "Some data".to_string());
+
+    blockchain.try_add_block(block);
 
     println!("Blockchaint init!");
 }
